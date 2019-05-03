@@ -102,7 +102,8 @@ public class TransfereCC {
         Packet syncPacket = new Packet();
         syncPacket.setSyncFlag(true);
         SYNC_NUM = ThreadLocalRandom.current().nextInt(1,5000);
-        syncPacket.setSyncNum(SYNC_NUM);
+        syncPacket.setSyncNum(SYNC_NUM); 
+        syncPacket.setLengthData(filename.getBytes().length);
         syncPacket.setData(filename.getBytes());
         
         if(isWrite) syncPacket.setWRFlag(true);
@@ -175,7 +176,9 @@ public class TransfereCC {
                 
                 sendPacket.setData(sendData);                   // carregar o pacote com os dados
                 sendPacket.setLengthData(length);               // carregar o pacote com o tamanho dos dados
-                sendPacket.setChecksum(check);                  // carregar o checksum no pacote
+                sendPacket.setChecksum(check);                  // carregar o checksum no pacote relativo ao PUT
+                
+                System.out.println("CHECK ANTES DO PUT: " + check);
                 
                 this.agente.send(sendPacket.toString(), dest);
             }
@@ -193,12 +196,14 @@ public class TransfereCC {
         
         public void downloadControl(String filename) throws FileNotFoundException, IOException{
             
-            String path = System.getProperty("user.home") + File.separator + "ccdownload";
+            long check = 0;
+            
+            String path = System.getProperty("user.home") + File.separator + "Desktop" + File.separator + "CCTP2" + File.separator + "Fich" + File.separator + "Download";
             File f = new File(path);
             if(!f.exists())f.mkdirs();
             
             File f2 = new File(path+File.separator+filename);
-            System.out.println(f2.getPath());
+            System.out.println(f2.getPath()+filename);
             
             if (f2.exists()) { System.out.println("O ficheiro já existe!"); }
             else{
@@ -207,7 +212,7 @@ public class TransfereCC {
                 System.out.println("O ficheiro foi criado = " + createNewFile);
             }
           
-            System.out.println(f.getPath());
+            System.out.println(f2.getPath());
             System.out.println("Posso ler? " + f.canRead());
             RandomAccessFile downloadFile = new RandomAccessFile(f2 , "rw");
             System.out.println("Foi aqui acima que fodeu");
@@ -222,8 +227,17 @@ public class TransfereCC {
                 //BUFFER.add(received);
                                
                 //downloadFile.writeChars(new String(conv.getData()).replaceAll("\0", "")); 
-                downloadFile.write(received.getData(),0,received.getLengthData());      // retira o array de bytes do pacote que está a ler, começa na posição 0 e vai até ao length
-
+                
+                // calcula o checksum do pacote recebido após o put           
+                check = CRC32checksumByteArray(received.getData());  
+                System.out.println("CHECK APOS PUT: " + check);
+                
+                if (received.getChecksum() == check){
+                    
+                    // retira o array de bytes do pacote que está a ler, começa na posição 0 e vai até ao length
+                    downloadFile.write(received.getData(),0,received.getLengthData());      
+                
+                }
             }
             
             
@@ -280,7 +294,7 @@ public class TransfereCC {
             Packet receive_datapacket;
             
             try {
-                this.agente_request = new AgenteUDP(7777);
+                this.agente_request = new AgenteUDP(7778);
             } catch (SocketException ex) {
                 System.err.println(ex.getMessage());
                 return;
@@ -298,7 +312,8 @@ public class TransfereCC {
             if(receive_datapacket.isWRFlag()){
                 
                 String filename = new String(receive_datapacket.getData());
-                filename = filename.replaceAll("\0", "");
+                filename = filename.replaceAll("\0", ""); 
+                System.out.println(filename);
                 
                 try {
                     System.out.println("Download " + filename);

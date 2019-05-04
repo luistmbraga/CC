@@ -39,8 +39,6 @@ public class TransfereCC {
     private int ACK_NUM = 0;
     private int WINDOW_SIZE = 0;
     private int INITIAL_SEGMENT = 0;
-    private final String InputPath = "C:/Users/Joaon/Desktop/CCTP2/Fich/Input/";  // C:/Users/luisb/Desktop/CC/TP2/Input/teste.txt"
-    private final String OutputPath = "C:/Users/Joaon/Desktop/CCTP2/Fich/Output/"; 
     private List<DatagramPacket> BUFFER = new ArrayList<DatagramPacket>(); 
         
     
@@ -98,6 +96,9 @@ public class TransfereCC {
         }
     }
     
+    /*
+        Função responsável por estabelecer a conecção inicial, envia o SYN inicial
+    */
     public void sendSyn(String filename, boolean isWrite, InetAddress dest) throws IOException{
         Packet syncPacket = new Packet();
         syncPacket.setSyncFlag(true);
@@ -109,12 +110,28 @@ public class TransfereCC {
         if(isWrite) syncPacket.setWRFlag(true);
         
         agente.send(syncPacket.toString(), dest);
+    } 
+    
+    /*
+        Função responsável pelo término da conecção, onde envia o FIN.
+    */
+    public void sendFin(InetAddress dest) throws IOException{ 
+        Packet finPacket = new Packet(); 
+        finPacket.setFinFlag(true); 
+        SYNC_NUM = ThreadLocalRandom.current().nextInt(1,5000); 
+        finPacket.setSyncNum(SYNC_NUM); 
+        finPacket.setLengthData(4);
+        finPacket.setData("null".getBytes());
+        
+        agente.send(finPacket.toString(),dest); 
     }
 
     
     public void downloadControl(String filename, InetAddress dest) throws FileNotFoundException, IOException{
         
-        RandomAccessFile downloadFile = new RandomAccessFile("C:/Users/Joaon/Desktop/CCTP2/Fich/Output/" + filename, "rw");
+        String path = System.getProperty("user.home") + File.separator + "Desktop" + File.separator + "CCTP2" + File.separator + "Fich" + File.separator + "Output";
+        
+        RandomAccessFile downloadFile = new RandomAccessFile(path + File.separator + filename, "rw");
         Packet ack = new Packet();
         Packet conv = new Packet();
         long check = 0;
@@ -125,7 +142,10 @@ public class TransfereCC {
             conv = agente.receive();
             System.out.println("Recebi !!!!!");
             ack = new Packet();
-        
+            
+            if(conv.isFinFlag()) break;
+            
+            
             check = CRC32checksumByteArray(conv.getData()); 
             System.out.println("CHECK RECEBIDO: " + check + "  o que veio" + conv.getChecksum());
             
@@ -133,20 +153,21 @@ public class TransfereCC {
             if (conv.getChecksum() == check ){
                 //BUFFER.add(received);
                 System.out.println("Estou a receber os dados");
-                
-            
-                downloadFile.write(conv.getData());
+                          
+                downloadFile.write(conv.getData());               
             }
-            
-        }
-            
+        }    
+  
+    
     }
     
    
     
     
     public void uploadControl(String filename, InetAddress dest) throws FileNotFoundException, IOException{
-        RandomAccessFile uploadFile = new RandomAccessFile("C:/Users/Joaon/Desktop/CCTP2/Fich/Input/" + filename, "r");
+        
+        String path = System.getProperty("user.home") + File.separator + "Desktop" + File.separator + "CCTP2" + File.separator + "Fich" + File.separator + "Input";
+        RandomAccessFile uploadFile = new RandomAccessFile(path + File.separator + filename, "r");
         
         int n = 0; 
         int length = 0;
@@ -157,10 +178,6 @@ public class TransfereCC {
             while(size > 0){
                 byte[] sendData;
                 
-                /* 
-                    NECESSÁRIO ALTERAR O SIZE UMA VEZ QUE O PACOTE FOI ALTERADO PARA TER EM CONTA O CHECKSUM CONTIDA NO PRÓPRIO PACOTE 
-                        -> (02/05/2019) 23:00 
-                */
                 
                 if(size > 454) {sendData = new byte[454]; n = uploadFile.read(sendData, 0, 454); ;}     
                 else {
@@ -182,6 +199,8 @@ public class TransfereCC {
                 
                 this.agente.send(sendPacket.toString(), dest);
             }
+            
+            sendFin(dest);                                      // terminar a conecção
     }
    
     
@@ -198,12 +217,12 @@ public class TransfereCC {
             
             long check = 0;
             
-            String path = System.getProperty("user.home") + File.separator + "Desktop" + File.separator + "CCTP2" + File.separator + "Fich" + File.separator + "Download";
+            String path = System.getProperty("user.home") + File.separator + "Desktop" + File.separator + "CCTP2" + File.separator + "Fich" + File.separator + "Output";
             File f = new File(path);
             if(!f.exists())f.mkdirs();
             
             File f2 = new File(path+File.separator+filename);
-            System.out.println(f2.getPath()+filename);
+            System.out.println(f2.getPath());
             
             if (f2.exists()) { System.out.println("O ficheiro já existe!"); }
             else{
@@ -230,14 +249,15 @@ public class TransfereCC {
                 
                 // calcula o checksum do pacote recebido após o put           
                 check = CRC32checksumByteArray(received.getData());  
-                System.out.println("CHECK APOS PUT: " + check);
+                
+                if (received.isFinFlag()) break;
                 
                 if (received.getChecksum() == check){
                     
                     // retira o array de bytes do pacote que está a ler, começa na posição 0 e vai até ao length
-                    downloadFile.write(received.getData(),0,received.getLengthData());      
-                
+                    downloadFile.write(received.getData(),0,received.getLengthData());                    
                 }
+            
             }
             
             
@@ -246,10 +266,11 @@ public class TransfereCC {
         
         public void uploadControl(String filename) throws FileNotFoundException, IOException{
                 
-        System.out.println("Path actual: |" + InputPath + filename + "|");  // "C:/Users/luisb/Desktop/CC/TP2/Input/teste1.txt"
         try{
+             String path = System.getProperty("user.home") + File.separator + "Desktop" + File.separator + "CCTP2" + File.separator + "Fich" + File.separator + "Input"; 
+             
+            RandomAccessFile uploadFile = new RandomAccessFile(path + File.separator + filename, "r");
             
-            RandomAccessFile uploadFile = new RandomAccessFile("C:/Users/Joaon/Desktop/CCTP2/Fich/Input/teste1.txt", "r");
             System.out.println("Já abri o descritor de ficheiro ");
             long n = 0;
             Packet sendPacket = new Packet();
@@ -259,11 +280,13 @@ public class TransfereCC {
             
             while(size > 0){
                 byte[] sendData;
+                
                 if(size > 454) {sendData = new byte[454]; n = uploadFile.read(sendData, 0, 454); ;}
                 else {
                     sendData = new byte[(int) size]; 
                     n = uploadFile.read(sendData, 0, (int) size);
                 }
+               
                 
                 size = size - n;
                 sendPacket.setData(sendData);
@@ -276,10 +299,19 @@ public class TransfereCC {
                 
                 sendPacket.setChecksum(check); 
                 System.out.println("Pacote possui check: " + sendPacket.getChecksum());
-                
+                 
                 this.agente_request.send(sendPacket.toString());
+                      
             }
-        
+           
+            sendPacket.setFinFlag(true);  
+            SYNC_NUM = ThreadLocalRandom.current().nextInt(1,5000); 
+            sendPacket.setSyncNum(SYNC_NUM); 
+            sendPacket.setLengthData(4);
+            sendPacket.setData("null".getBytes());
+            System.out.println("SEND PACKET FINAL: " + sendPacket.isFinFlag());
+            this.agente_request.send(sendPacket.toString()); 
+           
         }
         catch( IOException e ){
             e.printStackTrace();
@@ -290,47 +322,49 @@ public class TransfereCC {
     }
         
         public void run(){
-                        
-            Packet receive_datapacket;
             
-            try {
-                this.agente_request = new AgenteUDP(7778);
-            } catch (SocketException ex) {
-                System.err.println(ex.getMessage());
-                return;
-            }
-             
-            
-            try {
-                receive_datapacket = this.agente_request.receive();
-            } catch (IOException ex) {
-                System.err.println(ex.getMessage());
-                return;
-            }
-                      
-            
-            if(receive_datapacket.isWRFlag()){
-                
-                String filename = new String(receive_datapacket.getData());
-                filename = filename.replaceAll("\0", ""); 
-                System.out.println(filename);
-                
+            while(true){
+                Packet receive_datapacket;
+
                 try {
-                    System.out.println("Download " + filename);
-                    downloadControl(filename);
-                } catch (IOException ex) {
-                   System.err.println(ex.getMessage());
-                }                              
-            }
-            else{
-                String filename = new String(receive_datapacket.getData());
+                    this.agente_request = new AgenteUDP(7777);
+                } catch (SocketException ex) {
+                    System.err.println(ex.getMessage());
+                    return;
+                }
+
+
                 try {
-                    System.out.println("Upload |" + filename + "|");
-                    
-                    uploadControl(filename);
+                    receive_datapacket = this.agente_request.receive();
                 } catch (IOException ex) {
                     System.err.println(ex.getMessage());
+                    return;
                 }
+
+                if(!receive_datapacket.isFinFlag())
+                    if(receive_datapacket.isWRFlag()){
+
+                        String filename = new String(receive_datapacket.getData());
+                        filename = filename.replaceAll("\0", ""); 
+                        System.out.println(filename);
+
+                        try {
+                            System.out.println("Download " + filename);
+                            downloadControl(filename);
+                        } catch (IOException ex) {
+                           System.err.println(ex.getMessage());
+                        }                              
+                    }
+                    else{
+                        String filename = new String(receive_datapacket.getData());
+                        try {
+                            System.out.println("Upload |" + filename + "|");
+
+                            uploadControl(filename);
+                        } catch (IOException ex) {
+                            System.err.println(ex.getMessage());
+                        }
+                    }
             }
         }
     }

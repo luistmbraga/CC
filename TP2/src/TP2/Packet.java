@@ -29,7 +29,7 @@ public class Packet {
 	
 	/*SYNCF, ACKF, FINF, WRF, SYNN, ACKN, WS, DATA*/
 	public Packet(){
-		this(false, false, false, false,0,0,0,0,0,null);
+		this(false, false, false, false,0,0,0,4,0,"null".getBytes());
 	}
 	public Packet(boolean syncFlag, 
 			boolean ackFlag, 

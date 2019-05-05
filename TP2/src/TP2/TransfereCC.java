@@ -31,11 +31,14 @@ import java.util.zip.Checksum;
  */
 public class TransfereCC {
     
+    private static int tam_buf = 200;
+    
     /**
      * AgenteUDP que trata da comunicação.
      */
     private AgenteUDP agente;
-    private int SYNC_NUM = 0;
+    private int SYNC_NUM = 0; 
+    private int SYNC_NUM_PROX =  0;
     private int ACK_NUM = 0;
     private int WINDOW_SIZE = 0;
     private int INITIAL_SEGMENT = 0;
@@ -72,12 +75,7 @@ public class TransfereCC {
     public Packet convertToPacket(DatagramPacket p){
         return Packet.valueOf(new String(p.getData()));
     }
-    
-    private static String cleanTextContent(String text){
-        text = text.replaceAll(null , "");
-        
-        return text;
-    }
+       
     
     public void iniciaTransferencia(String transferType, String filename, InetAddress dest) throws IOException{
         
@@ -155,7 +153,12 @@ public class TransfereCC {
                 System.out.println("Estou a receber os dados");
                           
                 downloadFile.write(conv.getData());               
+                
+                // DOWNLOAD MANDA ACK GET
+                ACK_NUM += ACK_NUM + conv.getData().length; 
+                conv.setAckNum(ACK_NUM);  
             }
+            
         }   
   
         downloadFile.close();
@@ -174,13 +177,14 @@ public class TransfereCC {
         int length = 0;
         long check = 0;
         Packet sendPacket = new Packet();
+        Packet ack = new Packet();
         
         long size = uploadFile.getChannel().size();
             while(size > 0){
                 byte[] sendData;
                 
                 
-                if(size > 454) {sendData = new byte[454]; n = uploadFile.read(sendData, 0, 454); ;}     
+                if(size > tam_buf) {sendData = new byte[tam_buf]; n = uploadFile.read(sendData, 0, tam_buf); ;}     
                 else {
                     sendData = new byte[(int) size]; 
                     n = uploadFile.read(sendData, 0, (int) size);
@@ -195,10 +199,19 @@ public class TransfereCC {
                 sendPacket.setData(sendData);                   // carregar o pacote com os dados
                 sendPacket.setLengthData(length);               // carregar o pacote com o tamanho dos dados
                 sendPacket.setChecksum(check);                  // carregar o checksum no pacote relativo ao PUT
+                sendPacket.setSyncNum(SYNC_NUM);
                 
                 System.out.println("CHECK ANTES DO PUT: " + check);
                 
-                this.agente.send(sendPacket.toString(), dest);
+                SYNC_NUM_PROX = SYNC_NUM + sendPacket.getData().length; 
+               
+                this.agente.send(sendPacket.toString(), dest); 
+                sendPacket = new Packet(); 
+                
+                ack = this.agente.receive(); 
+                if (ack.getAckNum() == SYNC_NUM_PROX){                    
+                    SYNC_NUM = SYNC_NUM_PROX;           // recebeu direito 
+                }               
             }
             
             uploadFile.close();
@@ -259,6 +272,9 @@ public class TransfereCC {
                     
                     // retira o array de bytes do pacote que está a ler, começa na posição 0 e vai até ao length
                     downloadFile.write(received.getData(),0,received.getLengthData());                    
+                    
+                    ACK_NUM += ACK_NUM + received.getData().length; 
+                    ack.setAckNum(ACK_NUM);                    
                 }
             
             }
@@ -285,7 +301,7 @@ public class TransfereCC {
             while(size > 0){
                 byte[] sendData;
                 
-                if(size > 200) {sendData = new byte[200]; n = uploadFile.read(sendData, 0, 200);}
+                if(size > tam_buf) {sendData = new byte[tam_buf]; n = uploadFile.read(sendData, 0, tam_buf);}
                 else {
                     sendData = new byte[(int) size]; 
                     n = uploadFile.read(sendData, 0, (int) size);
@@ -330,7 +346,7 @@ public class TransfereCC {
         public void run(){
 
             try {
-                    this.agente_request = new AgenteUDP(7778);
+                    this.agente_request = new AgenteUDP(7777);
                 } catch (SocketException ex) {
                     System.err.println(ex.getMessage());
                     return;

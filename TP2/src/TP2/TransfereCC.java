@@ -45,6 +45,9 @@ public class TransfereCC {
     private List<DatagramPacket> BUFFER = new ArrayList<DatagramPacket>(); 
         
     
+    /* 
+    *   Inicialização de algumas variáveis associadas ao TransfereCC 
+    */
     public TransfereCC() throws SocketException{
         TransfereCC_Manager man = new TransfereCC_Manager();
         Thread listener =   new Thread(man);
@@ -56,7 +59,15 @@ public class TransfereCC {
     }
     
     /* 
-        Cálculo do CRC32 (cyclic redundacy check) de um array de bytes.
+    *   Cálculo do CRC32 (cyclic redundacy check) de um array de bytes, de modo
+    *   a poder efetuar a validação do PDU recebido no destino.
+    *   1ºlugar -> Calcula o checksum dos dados na origem; 
+    *   2ºlugar -> Adiciona o checksum calculado anteriormente ao 
+    *   pacote de dados; 
+    *   3ºlugar -> Calcula o checksum novamente no destino, e compara esse valor 
+    *   com o valor que veio no pacote de dados.
+    *   @param bytes Array de bytes sobre o qual irá ser calculado o checksum 
+    *   @return long Resultado do checksum do array de bytes
     */
     public long CRC32checksumByteArray(byte[] bytes){ 
         
@@ -71,12 +82,17 @@ public class TransfereCC {
         return checksumValue;
     }
     
-    
-    public Packet convertToPacket(DatagramPacket p){
-        return Packet.valueOf(new String(p.getData()));
-    }
-       
-    
+    /* 
+    *   Função responsável pelo início da transferência, onde, de acordo com o tipo de transferência 
+    *   em questão, envia um sinal de controlo, ou seja o SYN de modo a inicializar a transferência 
+    *   de dados, sendo que nesse SYN contém informação acerca do ficheiro, e do destino. De seguida, 
+    *   consoante o tipo de transferência, é também direcionado para a função responsável por tratar
+    *   do mecanismo por detrás dessa transferência. 
+    *   @param transferType é o tipo de transferência, podendo ser um get ou um put. 
+    *   @param filename o nome do ficheiro a ser transferido. 
+    *   @param dest é o enderço ip destino. 
+    *   @return void.
+    */ 
     public void iniciaTransferencia(String transferType, String filename, InetAddress dest) throws IOException{
         
         
@@ -95,7 +111,14 @@ public class TransfereCC {
     }
     
     /*
-        Função responsável por estabelecer a conecção inicial, envia o SYN inicial
+    *   Estabelece a conecção inicial com um envio de um SYN, onde é criado um novo pacote com 
+    *   este propósito, sendo que a flag que representa o SYN é posta a true, é também gerado 
+    *   um número aleatória para o número de sequência, sendo este depois adicionado ao pacote, 
+    *   onde é também passado dados, de seguida o pacote é enviado para o endereço IP destino. 
+    *   @param filename Nome do ficheiro.
+    *   @param isWrite Indica se está para escrita ou não. 
+    *   @param dest Endereço ip destino. 
+    *   @return void.
     */
     public void sendSyn(String filename, boolean isWrite, InetAddress dest) throws IOException{
         Packet syncPacket = new Packet();
@@ -111,7 +134,13 @@ public class TransfereCC {
     } 
     
     /*
-        Função responsável pelo término da conecção, onde envia o FIN.
+    *   Responsável por enviar o sinal do término de conecção, onde, de maneira análoga à 
+    *   função anterior, é criado um novo pacote, onde é colocada a flag do FIN a true, 
+    *   sendo também gerado um número de sequência (embora não sendo necessário), sendo depois
+    *   colocados dados aleatórios, uma vez que não interessa o tipo de dados a ser tratados 
+    *   neste término ou início de conecção. 
+    *   @param dest Endereço IP destino. 
+    *   @return void.
     */
     public void sendFin(InetAddress dest) throws IOException{ 
         Packet finPacket = new Packet(); 
@@ -124,7 +153,18 @@ public class TransfereCC {
         agente.send(finPacket.toString(),dest); 
     }
 
-    
+    /* 
+    *   Função cujo intuito é tratar dos mecanismos por detrás do GET de um ficheiro, onde 
+    *   É aberta um RandomAcessFile, com o intuito de esctita, num path pré-definido, e enquanto 
+    *   que é verdade, ou seja, num ciclo infinito abre um pacote conv que está sempre a espera 
+    *   de receber pacotes, onde caso receba um pacote com a FIN flag a true (término de conecção), 
+    *   sai do ciclo, caso contrário, calcula o checksum aqui no destino, e compara com o checksum 
+    *   que vem no pacote, caso seja igual, não houve manipulação dos dados pelo caminho pelo que é 
+    *   seguro escrever no ficheiro. Manda também um ACK para confirmar que recebeu a informação. 
+    *   @param filename Nome do ficheiro. 
+    *   @param dest Endereço IP destino. 
+    *   @return void.
+    */
     public void downloadControl(String filename, InetAddress dest) throws FileNotFoundException, IOException{
         
         String path = System.getProperty("user.home") + File.separator + "Desktop" + File.separator + "CCTP2" + File.separator + "Fich" + File.separator + "Output";
@@ -166,8 +206,20 @@ public class TransfereCC {
     }
     
    
-    
-    
+    /*
+    *   Função responsável por tratar do mecanismo do PUT na perspetiva da origem, onde novamente 
+    *   é aberto um escritor para um path pré definido, e enquanto que o tamanho do ficheiro seja maior 
+    *   que zero, o ficheiro é lido, e é transformado num array de bytes, de seguida é calculado o checksum 
+    *   desse array de bytes, e é calculado também o payload (length) dos dados, sendo que são adicionados ao 
+    *   pacote de seguida todos estes dados, tal como os dados a ser transferidos, o tamanho dos dados, 
+    *   o checksum e o número de sequência. Para além disto, é também calculado aqui o próximo número 
+    *   de sequência, e é recebido um pacote do tipo ACK, onde caso o número do ACK corresponda com o próximo
+    *   número de sequência, é atualizado o número de sequência. No final é tratado o término da conecção 
+    *   ao utilizar a função previamente explicada (sendFin). 
+    *   @param filename Nome do ficheiro. 
+    *   @param dest Endereço IP destino. 
+    *   @return void.
+    */
     public void uploadControl(String filename, InetAddress dest) throws FileNotFoundException, IOException{
         
         String path = System.getProperty("user.home") + File.separator + "Desktop" + File.separator + "CCTP2" + File.separator + "Fich" + File.separator + "Input";
@@ -229,6 +281,17 @@ public class TransfereCC {
         private byte[] buffer = new byte[MAX_BUFFER_SIZE];
         public TransfereCC_Manager(){}
         
+        
+        /* 
+        *   Função responsável pelo mecanismo do GET na perspetiva do destino, onde é aberto um escritor 
+        *   de ficheiro para um path pré definido, sendo criadas as pastas caso ainda não as possua 
+        *   criadas. De seguida, num loop infinito, são recebidos os pacotes, sendo calculado agora o checksum 
+        *   dos dados recebidos, caso o checksum calculado aqui corresponda com o do pacote, os dados 
+        *   são retirados do pacote recebidos, e são escritos no ficheiro desde a posição zero, até 
+        *   ao próprio tamanho dos dados. De seguida é enviado novamente um ACK de confirmação. 
+        *   @param filename Nome do ficheiro. 
+        *   @return void. 
+        */
         public void downloadControl(String filename) throws FileNotFoundException, IOException{
             
             long check = 0;
@@ -283,7 +346,18 @@ public class TransfereCC {
             
          }
         
-        
+        /* 
+        *   Responsável pelo PUT na perspetiva da origem, ou seja, é novamente aberto um escritor 
+        *   de ficheiros num path pré definido, sendo calculado o tamanho do ficheiro, caso 
+        *   o tamanho seja maior que zero, os dados são lidos e passados para um array de bytes 
+        *   sendo este array de bytes depois passado para dentro do pacote a enviar, sendo calculado 
+        *   também o payload (length) dos dados, a ser adicionados no pacote também, bem como o chekcsum 
+        *   do array de bytes correspondente aos dados, onde tal como nos outros, é adicionado também 
+        *   ao pacote de dados a enviar. por fim o pacote é enviado. No final de todo este processo, 
+        *   é enviado um FIN com um mecanismo semelhante à função sendFin. 
+        *   @param filename Nome do ficheiro. 
+        *   @return void.
+        */
         public void uploadControl(String filename) throws FileNotFoundException, IOException{
                 
         try{
@@ -343,6 +417,16 @@ public class TransfereCC {
         System.out.println("Ja li");
     }
         
+        /* 
+        *   Runnable interface, de modo a tirar vantagem das threads, é aberto um 
+        *   port no 7777 por pré definição, existindo um ciclo infrinito, onde 
+        *   são recebidos os pacotes de dados, e caso o pacote de dados recebido 
+        *   não possua uma fin flag a true, caso o apcote seja para escrita, 
+        *   é retirado o nome do ficheiro do pacote, sendo este de seguida 
+        *   processado e passado para o mecanismo do GET. Caso não seja para escrita
+        *   é retirado novamente o nome do ficheiro, é é passado para o mecanismo PUT. 
+        *   @return void.
+        */
         public void run(){
 
             try {

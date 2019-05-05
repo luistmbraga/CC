@@ -15,16 +15,16 @@ import static sun.security.krb5.Confounder.bytes;
  * @author luisb
  */
 public class Packet {
-        private boolean syncFlag;
-	private boolean ackFlag;
-	private boolean finFlag;
-        private boolean wrFlag;
-	private int syncNum;
-	private int ackNum;
-	private int windowSize;
+        private boolean syncFlag;          // flag que indica se o pacote a mandar é um SYN.
+	private boolean ackFlag;           // flag que indica se o pacote a mandar é um ACK.
+	private boolean finFlag;           // flag que indica se o pacote a mandar é um FIN.
+        private boolean wrFlag;            // flag que indica caso o ficheiro esteja para escritga
+	private int syncNum;               // número de sequência 
+	private int ackNum;                // número do ACK.
+	private int windowSize;            // tamanho da janela, de modo a saber quandos pacotes a mandar 
         private int length_data;           // tamanho dos dados
         private long checksum;             // checksum do pacote
-	private byte[] data;            
+	private byte[] data;               // array de bytes referente aos dados do pacote
                 
 	
 	/*SYNCF, ACKF, FINF, WRF, SYNN, ACKN, WS, DATA*/

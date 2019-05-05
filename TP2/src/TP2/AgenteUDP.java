@@ -44,6 +44,16 @@ public class AgenteUDP{
         this.userSocket = new DatagramSocket(port);
     }
     
+    /* 
+    *   Função responsável pelo envio dos dados, sendo os dados tratados como 
+    *   uma string para um certo endereço IP destino. Os dados são passados 
+    *   de uma String para um array de bytes, e de seguida são passados para 
+    *   dentro de um datagram packet, onde serão enviados para o destino 
+    *   IP através de uma porta pré definida para o envio (7777). 
+    *   @param data Dados a ser transferidos na forma de uma String. 
+    *   @param address Endereço IP destino. 
+    *   @return void.
+    */
     public void send(String data, InetAddress address) throws IOException{
         
         byte[] buffer = data.getBytes();
@@ -53,6 +63,14 @@ public class AgenteUDP{
         userSocket.send(packet);
     }
     
+    
+    /* 
+    *   Função responsável pelo envio de dados, onde a única diferença para a 
+    *   função anterior se concentra na ausência de um endereço IP destino 
+    *   passado como argumento na função. 
+    *   @param data Dados a ser transferidos na forma de uma String. 
+    *   @return void. 
+    */
     public void send(String data) throws IOException{
        
         byte[] buffer = data.getBytes();
@@ -62,7 +80,13 @@ public class AgenteUDP{
         userSocket.send(packet);
     }
     
-    
+    /* 
+    *   Função responsável pela rececção dos pacotes de dados, onde é aberto 
+    *   um array de bytes com um tamanho pré definido, e um datagrampacket 
+    *   de seguida, o pacote é recebido, e é retirado o endereço IP do pacote
+    *   sendo de seguida processado e retornado o próprio pacote de dados. 
+    *   @return Packet Pacote processado.
+    */
     public Packet receive() throws IOException{
         byte[] buffer = new byte[MAX_BUFFER_SIZE];
         DatagramPacket packet = new DatagramPacket(buffer, buffer.length);

@@ -4,11 +4,12 @@
     <open-files xmlns="http://www.netbeans.org/ns/projectui-open-files/2">
         <group>
             <file>file:/C:/Users/joaon/Desktop/CCTP2/src/TP2/AgenteUDP.java</file>
+            <file>file:/C:/Users/joaon/Desktop/CCTP2/src/TP2/Shared_Functions.java</file>
             <file>file:/C:/Users/joaon/Desktop/CCTP2/src/TP2/FicheiroInfo.java</file>
             <file>file:/C:/Users/joaon/Desktop/CCTP2/src/TP2/TransfereCC.java</file>
             <file>file:/C:/Users/joaon/Desktop/CCTP2/src/TP2/Estado.java</file>
             <file>file:/C:/Users/joaon/Desktop/CCTP2/src/TP2/TransfereCC_CmdLine_App.java</file>
-            <file>file:/C:/Users/joaon/Desktop/CCTP2/src/TP2/Packet.java</file>
+            <file>file:/C:/Users/joaon/Desktop/CCTP2/src/TP2/TransfereCC_Manager.java</file>
         </group>
     </open-files>
 </project-private>

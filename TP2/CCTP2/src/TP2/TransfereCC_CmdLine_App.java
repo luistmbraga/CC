@@ -25,16 +25,24 @@ public class TransfereCC_CmdLine_App {
                   "************************* HELP *************************\n"
                 + "*                                                      *\n"
                 + "*    SYNOPSIS:                                         *\n"
-                + "*             ccget <filename>                         *\n"
-                + "*             ccput <filename>                         *\n"
+                + "*             ccget [OPTIONS] <filename> <IPDEST>      *\n"
+                + "*             ccput <filename> <IPDEST>                *\n"
                 + "*                                                      *\n"
                 + "*    COMMANDS:                                         *\n"
                 + "*             ccget - used to download a file          *\n"
                 + "*             ccput - used to upload a file            *\n" 
                 + "*                                                      *\n"
+                + "*    OPTIONS:                                          *\n"
+                + "*             -name <localfilename>                    *\n"
+                + "*                   This option is used to define the  *\n"
+                + "*                 local file name if used on ccget     *\n"
+                + "*                 command.                             *\n"
+                + "*                                                      *\n"
                 + "*        In <filename> should be specified the name    *\n"
                 + "*    of the file that you want to download or          *\n"
                 + "*    upload.                                           *\n"
+                + "*        In <localfilename> should be specified the    *\n"
+                + "*    local name of the file to download.               *\n"
                 + "*                                                      *\n"
                 + "********************************************************");
     }
@@ -81,24 +89,32 @@ public class TransfereCC_CmdLine_App {
             Inicio da interpretacao dos comandos
             */
             
+            if(argumentos[0].equals("exit")) continue;
+            
             // menu de ajuda
-            if(argumentos[0].equals("h") || argumentos[0].equals("help")){
+            if((argumentos[0].equals("h") || argumentos[0].equals("help"))){
                 imprimeHelp();
             }
             else{
-                if(argumentos[0].equals("ccget") || argumentos[0].equals("ccput")){
+                
+                int n = argumentos.length;
+                
+                if(argumentos[0].equals("ccget") || argumentos[0].equals("ccput") && (n == 3 || n == 5)){
                 
                     InetAddress dest;
-                    try {
-                        dest = InetAddress.getByName(argumentos[2]);
-                    } catch (Exception ex) {
-                        System.err.println("Host Unknown " + ex.getMessage());
-                        return;
-                    }
 
                     try {
-                        System.out.println("'"+argumentos[1]+"'");
-                        trans.iniciaTransferencia(argumentos[0], argumentos[1], dest);
+                        
+                        if(n == 3){
+                            dest = InetAddress.getByName(argumentos[2]);
+                            trans.iniciaTransferencia(argumentos[0], argumentos[1], dest);
+                        }else{
+                            if(n == 5 && argumentos[1].equals("-name") && argumentos[0].equals("ccget")){
+                                dest = InetAddress.getByName(argumentos[4]);
+                                trans.iniciaTransferencia(argumentos[0], argumentos[3],argumentos[2], dest);
+                            }else System.err.println("Comando não reconhecido. Comando h ou help para mais informações.");
+                        }
+                    
                     } catch (Exception ex) {
                         System.err.println(ex.getMessage());
                     }

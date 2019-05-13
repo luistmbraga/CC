@@ -11,6 +11,8 @@ import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.net.InetAddress;
 import java.net.SocketException;
+import java.time.LocalDateTime;
+import static java.time.temporal.ChronoUnit.MILLIS;
 import java.util.concurrent.ThreadLocalRandom;
 
 /**
@@ -26,10 +28,10 @@ public class TransfereCC_ThreadRequest extends Thread {
     private int ACK_NUM = 0;
     private int WINDOW_SIZE = 0;
     private int INITIAL_SEGMENT = 0;
-    
+    private LocalDateTime begin;
     private AgenteUDP agente_request;
     
-    public TransfereCC_ThreadRequest(int destPort, InetAddress destIp, String filename, boolean wr, int ack_num){
+    public TransfereCC_ThreadRequest(int destPort, InetAddress destIp, String filename, boolean wr, int ack_num, LocalDateTime begin){
         this.destPort = destPort;
         this.destIp = destIp;
         this.filename = filename;
@@ -37,6 +39,13 @@ public class TransfereCC_ThreadRequest extends Thread {
         this.ACK_NUM = ack_num;
         this.SYNC_NUM = ThreadLocalRandom.current().nextInt(1,5000);
         this.SYNC_NUM_PROX = this.SYNC_NUM;
+        this.begin = begin;
+        try {
+            this.agente_request = new AgenteUDP();
+            this.agente_request.setTimeOut(72000);
+        } catch (SocketException ex) {
+            
+        }
     }
     
     /* 
@@ -61,7 +70,13 @@ public class TransfereCC_ThreadRequest extends Thread {
         
         while(true){
             
+            try{
             conv = agente_request.receive();
+            }
+            catch(Exception ex){
+                return;
+            }
+            
             ack = new Packet();
             
             if(conv.isAckFlag() && conv.getAckNum() != SYNC_NUM){
@@ -80,7 +95,7 @@ public class TransfereCC_ThreadRequest extends Thread {
             if (conv.getChecksum() == check ){
                 //BUFFER.add(received);
                 
-                downloadFile.write(conv.getData());               
+                downloadFile.write(conv.getData());
                 
                 // DOWNLOAD MANDA ACK GET
                 ACK_NUM += conv.getData().length; 
@@ -157,7 +172,14 @@ public class TransfereCC_ThreadRequest extends Thread {
                 do{ 
                     ack = new Packet();
                     this.agente_request.send(sendPacket.toString());
+                    
+                    try{
                     ack = agente_request.receive();
+                    }
+                    catch(Exception ex){
+                        return;
+                    }
+                    
                 }while (!ack.isAckFlag() && ack.getAckNum() != SYNC_NUM_PROX);
                 
                 SYNC_NUM = SYNC_NUM_PROX;
@@ -181,11 +203,6 @@ public class TransfereCC_ThreadRequest extends Thread {
     private boolean wr;
     
     public void run() {
-        try {
-            this.agente_request = new AgenteUDP();
-        } catch (SocketException ex) {
-            System.err.println(ex.getMessage());
-        }
         
         this.agente_request.setDestIp(destIp);
         this.agente_request.setDestPort(destPort);
@@ -198,7 +215,33 @@ public class TransfereCC_ThreadRequest extends Thread {
         
          if(wr){
                 try {
-                    this.agente_request.send(ack.toString()); // send SYN+ACK
+                    File r = new File(System.getProperty("user.home") + File.separator + 
+                              "Files" + File.separator + 
+                              "Output" + File.separator + 
+                              filename);
+                    
+                    if(r.exists()){
+                        ack.setData("jaexiste".getBytes());
+                        ack.setLengthData("jaexiste".length());
+                        this.agente_request.send(ack.toString());
+                        return;
+                    }else{
+                        this.agente_request.send(ack.toString());
+                    }
+                    
+                    try{
+                        this.agente_request.receive(); 
+                    }
+                    catch(Exception ex){
+                        return;
+                    }
+                    
+                    LocalDateTime end = LocalDateTime.now();
+                    
+                    int timeout = (int) this.begin.until(end, MILLIS);
+                    
+                    this.agente_request.setTimeOut(timeout*100);
+                    
                     downloadControl(filename);
                 } catch (IOException ex) {
                    System.err.println(ex.getMessage());
@@ -210,15 +253,29 @@ public class TransfereCC_ThreadRequest extends Thread {
                               "Files" + File.separator + 
                               "Input" + File.separator + 
                               filename);
-            
+                    
                     if(!f.exists()){
                         ack.setData("naoexiste".getBytes());
                         ack.setLengthData("naoexiste".length());
                         this.agente_request.send(ack.toString());
                         return;
+                    }else{
+                        this.agente_request.send(ack.toString());
+                    }
+                      
+                    try{
+                        this.agente_request.receive();
+                    }
+                    catch(Exception ex){
+                        return;
                     }
                     
-                    this.agente_request.send(ack.toString());
+                    LocalDateTime end = LocalDateTime.now();
+                    
+                    int timeout = (int) this.begin.until(end, MILLIS);
+                    
+                    
+                    this.agente_request.setTimeOut(timeout*100);
                     
                     uploadControl(f);
                 } catch (IOException ex) {

@@ -7,6 +7,7 @@ package TP2;
 
 import java.io.IOException;
 import java.net.SocketException;
+import java.time.LocalDateTime;
 
 /**
  *
@@ -50,6 +51,9 @@ import java.net.SocketException;
                 
                 
                 if(!receive_datapacket.isFinFlag()){
+                    
+                    LocalDateTime begin = LocalDateTime.now();
+                    
                     String filename = new String(receive_datapacket.getData());
                     filename = filename.replaceAll("\0", "");
                     TransfereCC_ThreadRequest tr = new TransfereCC_ThreadRequest(
@@ -57,7 +61,8 @@ import java.net.SocketException;
                                                    this.agente_request.getDestIp(),
                                                    filename,
                                                    receive_datapacket.isWRFlag(),
-                                                   receive_datapacket.getSyncNum());
+                                                   receive_datapacket.getSyncNum(),
+                                                   begin);
                     
                     tr.start();
                 }

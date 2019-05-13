@@ -6,19 +6,13 @@
 package TP2;
 
 import java.io.File;
-import java.io.IOException;
-import java.io.InputStreamReader;
 import java.io.RandomAccessFile;
 import java.net.InetAddress;
 import java.net.SocketException;
-import java.net.UnknownHostException;
 import java.io.FileNotFoundException;
-import java.net.DatagramPacket;
 import java.net.SocketTimeoutException;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
+import static java.time.temporal.ChronoUnit.MILLIS;
 
 /**
  *
@@ -51,6 +45,57 @@ public class TransfereCC {
         this.agente.setTimeOut(timeout);
     }
    
+    
+    public void iniciaTransferencia(String transferType, String filename, String nameop, InetAddress dest) throws Exception{
+        
+        Shared_Functions sf = new Shared_Functions();
+        Packet ack = new Packet();
+        
+        String path = System.getProperty("user.home") + File.separator + "Files" + File.separator + "Output";
+
+        File f = new File(path + File.separator + nameop);
+
+        if(f.exists()){
+            throw new Exception("O ficheiro já existe.");
+        }
+
+        SYNC_NUM = sf.sendSyn(this.agente, filename, false, dest);
+
+        LocalDateTime begin = LocalDateTime.now();
+
+        SYNC_NUM_PROX = SYNC_NUM;
+
+        try{
+            ack = this.agente.receive(); // recebe o syn+ack
+            }
+        catch(SocketTimeoutException ex){
+            throw new Exception("A conexão expirou.");
+        }
+
+        if((new String(ack.getData())).equals("naoexiste")){
+        throw new FileNotFoundException("O ficheiro não existe.");
+        }
+
+        this.ACK_NUM = ack.getSyncNum();
+
+        LocalDateTime end = LocalDateTime.now();
+
+        int timeout = (int) begin.until(end, MILLIS);
+
+
+        this.agente.setTimeOut(timeout*100);
+
+        ack = new Packet();
+        ack.setAckFlag(true);
+        ack.setAckNum(ACK_NUM);
+
+        this.agente.send(ack.toString());
+
+        downloadControl(nameop, dest);
+    }
+    
+    
+    
     /* 
     *   Função responsável pelo início da transferência, onde, de acordo com o tipo de transferência 
     *   em questão, envia um sinal de controlo, ou seja o SYN de modo a inicializar a transferência 
@@ -69,28 +114,46 @@ public class TransfereCC {
         
         if(transferType.equals("ccget")){
             
-            LocalDateTime begin = LocalDateTime.now();
+            String path = System.getProperty("user.home") + File.separator + "Files" + File.separator + "Output";
+        
+            File f = new File(path + File.separator + filename);
+        
+            if(f.exists()){
+                throw new Exception("O ficheiro já existe.");
+            }
             
             SYNC_NUM = sf.sendSyn(this.agente, filename, false, dest);
+            
+            LocalDateTime begin = LocalDateTime.now();
             
             SYNC_NUM_PROX = SYNC_NUM;
                     
             try{
                 ack = this.agente.receive(); // recebe o syn+ack
-                this.ACK_NUM = ack.getSyncNum();
-            
-                LocalDateTime end = LocalDateTime.now();
-                
-                
-            }
+                }
             catch(SocketTimeoutException ex){
                 throw new Exception("A conexão expirou.");
             }
             
             if((new String(ack.getData())).equals("naoexiste")){
-                throw new FileNotFoundException("O ficheiro não existe.");
+            throw new FileNotFoundException("O ficheiro não existe.");
             }
             
+            this.ACK_NUM = ack.getSyncNum();
+
+            LocalDateTime end = LocalDateTime.now();
+
+            int timeout = (int) begin.until(end, MILLIS);
+
+            
+            this.agente.setTimeOut(timeout*100);
+
+            ack = new Packet();
+            ack.setAckFlag(true);
+            ack.setAckNum(ACK_NUM);
+
+            this.agente.send(ack.toString());
+    
             downloadControl(filename, dest);
         }
         else {
@@ -105,16 +168,32 @@ public class TransfereCC {
             }
             
             SYNC_NUM = sf.sendSyn(this.agente, filename, true, dest);
+            LocalDateTime begin = LocalDateTime.now();
             SYNC_NUM_PROX = SYNC_NUM;
             
             try{
                 ack = this.agente.receive();
-                
-                this.ACK_NUM = ack.getSyncNum();
-            }
+                }
             catch(Exception ex){
                 throw new Exception("A conexão expirou.");
             }
+            
+            if((new String(ack.getData())).equals("jaexiste")){
+                throw new FileNotFoundException("O ficheiro ja existe.");
+            }
+            
+            LocalDateTime end = LocalDateTime.now();
+
+            int timeout = (int) begin.until(end, MILLIS);
+ 
+            this.agente.setTimeOut(timeout*100);
+            this.ACK_NUM = ack.getSyncNum();
+
+            ack = new Packet();
+            ack.setAckFlag(true);
+            ack.setAckNum(ACK_NUM);
+
+            this.agente.send(ack.toString());
                 
             uploadControl(f, dest);
         }  
@@ -133,7 +212,7 @@ public class TransfereCC {
     *   @param dest Endereço IP destino. 
     *   @return void.
     */
-    public void downloadControl(String filename, InetAddress dest) throws FileNotFoundException, IOException{
+    public void downloadControl(String filename, InetAddress dest) throws Exception{
         
         String path = System.getProperty("user.home") + File.separator + "Files" + File.separator + "Output";
         
@@ -146,8 +225,13 @@ public class TransfereCC {
         
         while(true){
             
-            conv = agente.receive();
-            
+            try{
+                conv = agente.receive();
+            }
+            catch(SocketTimeoutException ex){
+                throw new Exception("A conexão expirou.");
+            }
+                
             ack = new Packet();
             
             if(conv.isAckFlag() && conv.getAckNum() != SYNC_NUM){
@@ -169,8 +253,7 @@ public class TransfereCC {
                 downloadFile.write(conv.getData());               
                 
                 // DOWNLOAD MANDA ACK GET
-                ACK_NUM += conv.getData().length; 
-                System.out.println("Ack : " + ACK_NUM);
+                ACK_NUM += conv.getData().length;
                 ack.setAckNum(ACK_NUM);    
                 // MANDA O ACK
                 this.agente.send(ack.toString(),dest);
@@ -206,7 +289,7 @@ public class TransfereCC {
     *   @param dest Endereço IP destino. 
     *   @return void.
     */
-    public void uploadControl(File f, InetAddress dest) throws FileNotFoundException, IOException{
+    public void uploadControl(File f, InetAddress dest) throws Exception{
         
         RandomAccessFile uploadFile = new RandomAccessFile(f, "r");
         
@@ -247,7 +330,14 @@ public class TransfereCC {
                 do{ 
                     ack = new Packet();
                     this.agente.send(sendPacket.toString(), dest); 
+                    
+                    try{
                     ack = agente.receive();
+                    }
+                    catch(SocketTimeoutException ex){
+                        throw new Exception("A conexão expirou.");
+                    }                  
+                    
                 }while (ack.getAckNum() != SYNC_NUM_PROX);
                 
                 SYNC_NUM = SYNC_NUM_PROX;

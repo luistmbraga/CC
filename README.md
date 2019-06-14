@@ -2,4 +2,4 @@
 Repositório para a UC de Comunicações de Computadores
 
 
-Nota: valores
+Nota: 15.5 valores
